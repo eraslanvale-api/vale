@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+staticfiles/
+
+# Environment
+.env
+.env.*
+venv/
+env/
+.venv/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Tests & Coverage
+.coverage
+htmlcov/
+.tox/
+.pytest_cache/
+
+# Migrations (isteğe bağlı)
+migrations/
+
+# Celery / Redis
+celerybeat-schedule
+celerybeat.pid
+
+# Node (frontend varsa)
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Build
+dist/
+build/
+
+# Gunicorn / Uvicorn
+gunicorn.pid
+
+# Logs
+logs/
