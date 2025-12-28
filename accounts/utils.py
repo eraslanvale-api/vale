@@ -3,8 +3,12 @@ from django.template.loader import render_to_string
 from django.conf import settings
 from django.utils.html import strip_tags
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 def send_password_reset_email(email, code):
-    subject = 'Vip Vale - Parola Sıfırlama Kodu'
+    subject = 'Premium Vale - Parola Sıfırlama Kodu'
     html_content = render_to_string('emails/password_reset_email.html', {'code': code})
     text_content = strip_tags(html_content)
     email_from = settings.DEFAULT_FROM_EMAIL
@@ -16,11 +20,11 @@ def send_password_reset_email(email, code):
         msg.send()
         return True
     except Exception as e:
-        print(f"Mail gönderme hatası: {e}")
+        logger.error(f"Mail gönderme hatası (Password Reset): {e}")
         return False
 
 def send_verification_email(email, code):
-    subject = 'Vip Vale - Hesap Doğrulama Kodu'
+    subject = 'Premium Vale - Hesap Doğrulama Kodu'
     html_content = render_to_string('emails/verification_email.html', {'code': code})
     text_content = strip_tags(html_content)
     email_from = settings.DEFAULT_FROM_EMAIL
@@ -32,5 +36,5 @@ def send_verification_email(email, code):
         msg.send()
         return True
     except Exception as e:
-        print(f"Mail gönderme hatası: {e}")
+        logger.error(f"Mail gönderme hatası (Verification): {e}")
         return False
