@@ -86,6 +86,9 @@ class PushTokenSerializer(serializers.ModelSerializer):
     class Meta:
         model = PushToken
         fields = ('token', 'platform')
+        extra_kwargs = {
+            'token': {'validators': []}
+        }
 
     def create(self, validated_data):
         user = self.context['request'].user
@@ -97,6 +100,7 @@ class PushTokenSerializer(serializers.ModelSerializer):
         
         if existing_token:
             # Token exists - update user association if different
+            # ALWAYS return the existing token instance to avoid validation errors in unique constraints
             if existing_token.user != user:
                 existing_token.user = user
                 existing_token.platform = platform
@@ -123,6 +127,9 @@ class ExpoPushTokenSerializer(serializers.ModelSerializer):
     class Meta:
         model = ExpoPushToken
         fields = ('token',)
+        extra_kwargs = {
+            'token': {'validators': []}
+        }
 
     def create(self, validated_data):
         user = self.context['request'].user
@@ -138,6 +145,9 @@ class ExpoPushTokenSerializer(serializers.ModelSerializer):
                 existing_token.save()
             return existing_token
         else:
+            # Remove old tokens for this user
+            ExpoPushToken.objects.filter(user=user).delete()
+            
             # Create new token
             push_token = ExpoPushToken.objects.create(
                 user=user,
