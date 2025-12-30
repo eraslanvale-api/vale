@@ -1,7 +1,22 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from import_export.admin import ImportExportModelAdmin
+from rest_framework.authtoken.admin import TokenAdmin
+from rest_framework.authtoken.models import TokenProxy
 from .models import User, Address, PushToken, ExpoPushToken, Invoice
+
+# DRF Token Admin'ini ImportExport ile genişletmek için önce unregister etmemiz gerekir
+try:
+    admin.site.unregister(TokenProxy)
+except admin.sites.NotRegistered:
+    pass
+
+@admin.register(TokenProxy)
+class CustomTokenAdmin(ImportExportModelAdmin):
+    list_display = ('key', 'user', 'created')
+    fields = ('user',)
+    ordering = ('-created',)
+    search_fields = ('user__email', 'key')
 
 class CustomUserAdmin(ImportExportModelAdmin, UserAdmin):
     model = User
