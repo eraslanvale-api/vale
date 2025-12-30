@@ -30,7 +30,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-        # Third-party
+    # Third-party
+    'import_export',
     'rest_framework',
     'corsheaders',
     'django_cleanup.apps.CleanupConfig',

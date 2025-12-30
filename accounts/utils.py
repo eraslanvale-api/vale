@@ -3,10 +3,6 @@ from django.template.loader import render_to_string
 from django.conf import settings
 from django.utils.html import strip_tags
 
-import logging
-
-logger = logging.getLogger(__name__)
-
 def send_password_reset_email(email, code):
     subject = 'Premium Vale - Parola Sıfırlama Kodu'
     html_content = render_to_string('emails/password_reset_email.html', {'code': code})
@@ -20,7 +16,7 @@ def send_password_reset_email(email, code):
         msg.send()
         return True
     except Exception as e:
-        logger.error(f"Mail gönderme hatası (Password Reset): {e}")
+        print(f"Mail gönderme hatası: {e}")
         return False
 
 def send_verification_email(email, code):
@@ -36,5 +32,5 @@ def send_verification_email(email, code):
         msg.send()
         return True
     except Exception as e:
-        logger.error(f"Mail gönderme hatası (Verification): {e}")
+        print(f"Mail gönderme hatası: {e}")
         return False

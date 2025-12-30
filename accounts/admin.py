@@ -1,8 +1,9 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
+from import_export.admin import ImportExportModelAdmin
 from .models import User, Address, PushToken, ExpoPushToken, Invoice
 
-class CustomUserAdmin(UserAdmin):
+class CustomUserAdmin(ImportExportModelAdmin, UserAdmin):
     model = User
     list_display = ('email', 'full_name', 'phone_number', 'role', 'is_verified', 'is_staff', 'is_active')
     list_filter = ('role', 'is_verified', 'is_staff', 'is_active', 'date_joined')
@@ -25,7 +26,7 @@ class CustomUserAdmin(UserAdmin):
     )
 
 @admin.register(Address)
-class AddressAdmin(admin.ModelAdmin):
+class AddressAdmin(ImportExportModelAdmin):
     list_display = ('user', 'title', 'city_district', 'is_default')
     list_filter = ('is_default',)
     search_fields = ('user__email', 'title', 'description', 'lat', 'lng')
@@ -37,13 +38,13 @@ class AddressAdmin(admin.ModelAdmin):
     city_district.short_description = "Adres Detayı"
 
 @admin.register(Invoice)
-class InvoiceAdmin(admin.ModelAdmin):
+class InvoiceAdmin(ImportExportModelAdmin):
     list_display = ('user', 'invoice_type', 'full_name', 'city', 'district', 'is_default')
     list_filter = ('invoice_type', 'is_default')
     search_fields = ('user__email', 'full_name', 'email', 'phone_number', 'city', 'district')
 
 @admin.register(PushToken)
-class PushTokenAdmin(admin.ModelAdmin):
+class PushTokenAdmin(ImportExportModelAdmin):
     list_display = ('user', 'platform', 'short_token', 'created_at')
     list_filter = ('platform', 'created_at')
     search_fields = ('user__email', 'token')
@@ -53,7 +54,7 @@ class PushTokenAdmin(admin.ModelAdmin):
     short_token.short_description = "Token (Kısaltılmış)"
 
 @admin.register(ExpoPushToken)
-class ExpoPushTokenAdmin(admin.ModelAdmin):
+class ExpoPushTokenAdmin(ImportExportModelAdmin):
     list_display = ('user', 'short_token', 'created_at')
     list_filter = ('created_at',)
     search_fields = ('user__email', 'token')

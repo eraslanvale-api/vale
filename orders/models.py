@@ -1,15 +1,17 @@
 from django.db import models
 from django.conf import settings
 import uuid
-from services.models import Service
+from services.models import Service, Vehicle
 
 # Create your models here.
 class Order(models.Model):
     STATUS_CHOICES = (
         ('scheduled', 'Planlandı'),              # Rezervasyon
         ('searching', 'Personel Aranıyor'),      # Rezervasyon → Aktif İş
-        ('accepted', 'Kabul Edildi'),
-        ('in_progress', 'Devam Ediyor'),
+        ('assigned', 'Sürücü Atandı'),           # Admin tarafından atandı
+        ('accepted', 'Kabul Edildi'),            # Sürücü kabul etti
+        ('on_way', 'Yolda'),                     # Sürücü müşteriye gidiyor (valet)
+        ('in_progress', 'Devam Ediyor'),         # Sürüş başladı
         ('completed', 'Tamamlandı'),
         ('cancelled', 'İptal Edildi'),
     )
@@ -23,6 +25,9 @@ class Order(models.Model):
     
     pickup_address = models.CharField(max_length=255)
     dropoff_address = models.CharField(max_length=255)
+
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.SET_NULL, null=True, blank=True, related_name="orders", verbose_name="Atanan Araç")
+    license_plate = models.CharField(max_length=20, blank=True, null=True, help_text="Otomatik olarak araçtan gelir, ancak manuel de girilebilir.")
     
     # date ve time birleştirildi
     pickup_time = models.DateTimeField()
@@ -40,6 +45,9 @@ class Order(models.Model):
     
     invoice = models.ForeignKey('accounts.Invoice', on_delete=models.SET_NULL, null=True, blank=True, related_name="orders")
 
+    emergency_contact_name = models.CharField(max_length=100, blank=True, null=True, verbose_name="Acil Durum Kişisi")
+    emergency_contact_phone = models.CharField(max_length=20, blank=True, null=True, verbose_name="Acil Durum Telefonu")
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -55,6 +63,11 @@ class Order(models.Model):
             else:
                 new_id_num = 1000
             self.id = f"ORD-{new_id_num}"
+        
+        # Eğer araç seçildiyse ve plaka girilmediyse veya farklıysa, plakayı güncelle
+        if self.vehicle:
+            self.license_plate = self.vehicle.plate
+            
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -73,3 +86,14 @@ class OrderStop(models.Model):
 
     def __str__(self):
         return f"{self.order.id} - Stop {self.order_index}: {self.address}"
+
+class EmergencyAlert(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='emergency_alerts')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='emergency_alerts_created')
+    lat = models.FloatField()
+    lng = models.FloatField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_resolved = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Emergency: {self.order.id} - {self.user.email}"

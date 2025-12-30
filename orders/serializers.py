@@ -1,9 +1,15 @@
 from rest_framework import serializers
-from .models import Order, OrderStop
+from .models import Order, OrderStop, EmergencyAlert
 from services.serializers import ServiceSerializer
 from services.models import Service
 from accounts.models import Invoice
 from accounts.serializers import UserSerializer
+
+class EmergencyAlertSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmergencyAlert
+        fields = ['id', 'order', 'lat', 'lng', 'created_at', 'is_resolved']
+        read_only_fields = ['user', 'created_at', 'is_resolved']
 
 class OrderStopSerializer(serializers.ModelSerializer):
     class Meta:
@@ -38,6 +44,9 @@ class OrderSerializer(serializers.ModelSerializer):
     pickupLng = serializers.FloatField(source='pickup_lng')
     dropoffLat = serializers.FloatField(source='dropoff_lat')
     dropoffLng = serializers.FloatField(source='dropoff_lng')
+    
+    emergencyContactName = serializers.CharField(source='emergency_contact_name', required=False, allow_blank=True, allow_null=True)
+    emergencyContactPhone = serializers.CharField(source='emergency_contact_phone', required=False, allow_blank=True, allow_null=True)
 
     pickupLoc = serializers.SerializerMethodField()
     dropoffLoc = serializers.SerializerMethodField()
@@ -47,9 +56,12 @@ class OrderSerializer(serializers.ModelSerializer):
     customerName = serializers.SerializerMethodField()
     statusLabel = serializers.CharField(source='get_status_display', read_only=True)
     time = serializers.SerializerMethodField()
+    has_active_emergency = serializers.SerializerMethodField()
     
     # Use UserSerializer for driver details
     driver = UserSerializer(read_only=True)
+    
+    vehicle_details = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -59,9 +71,21 @@ class OrderSerializer(serializers.ModelSerializer):
             'price', 'paymentMethod', 'distanceKm', 'durationMin',
             'pickupLoc', 'dropoffLoc', 'stops',
             'pickupLat', 'pickupLng', 'dropoffLat', 'dropoffLng',
-            'customerName', 'driver', 'created_at', 'invoiceId'
+            'emergencyContactName', 'emergencyContactPhone',
+            'customerName', 'driver', 'created_at', 'invoiceId',
+            'license_plate', 'vehicle_details', 'has_active_emergency'
         ]
         read_only_fields = ['driver']
+
+    def get_vehicle_details(self, obj):
+        if obj.vehicle:
+            return {
+                "plate": obj.vehicle.plate,
+                "brand": obj.vehicle.brand,
+                "model": obj.vehicle.model,
+                "color": obj.vehicle.color
+            }
+        return None
 
     def get_serviceName(self, obj):
         return obj.service.name if obj.service else None
@@ -84,6 +108,9 @@ class OrderSerializer(serializers.ModelSerializer):
 
     def get_time(self, obj):
         return obj.pickup_time.strftime("%H:%M")
+
+    def get_has_active_emergency(self, obj):
+        return EmergencyAlert.objects.filter(order=obj, is_resolved=False).exists()
     
     def create(self, validated_data):
         stops_data = validated_data.pop('stops', [])

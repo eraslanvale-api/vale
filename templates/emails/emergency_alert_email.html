@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border: 1px solid #e0e0e0;
+        }
+        .header {
+            background-color: #000000;
+            padding: 30px;
+            text-align: center;
+            border-bottom: 4px solid #ef4444; /* Red for Emergency */
+        }
+        .header h1 {
+            margin: 0;
+            color: #ffffff;
+            font-size: 24px;
+            font-weight: 300;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+        .content {
+            padding: 40px 30px;
+            color: #333333;
+            line-height: 1.6;
+        }
+        .emergency-title {
+            color: #ef4444;
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 30px;
+            text-transform: uppercase;
+            border-bottom: 2px solid #ef4444;
+            padding-bottom: 10px;
+            display: inline-block;
+        }
+        .emergency-title-container {
+            text-align: center;
+        }
+        .info-section {
+            background-color: #f9f9f9;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #333;
+        }
+        .info-title {
+            font-weight: bold;
+            color: #000;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            font-size: 14px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+        }
+        .info-row {
+            margin-bottom: 8px;
+        }
+        .label {
+            font-weight: 600;
+            color: #555;
+            width: 120px;
+            display: inline-block;
+        }
+        .value {
+            color: #000;
+        }
+        .map-button-container {
+            text-align: center;
+            margin-top: 30px;
+            margin-bottom: 20px;
+        }
+        .map-button {
+            background-color: #ef4444;
+            color: #ffffff;
+            text-decoration: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-weight: bold;
+            font-size: 16px;
+            display: inline-block;
+            box-shadow: 0 4px 6px rgba(239, 68, 68, 0.3);
+        }
+        .footer {
+            background-color: #f9f9f9;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #888888;
+            border-top: 1px solid #eeeeee;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>PREMIUM VALE</h1>
+        </div>
+        <div class="content">
+            <div class="emergency-title-container">
+                <div class="emergency-title">ACİL DURUM BİLDİRİMİ</div>
+            </div>
+            
+            <p style="text-align: center; margin-bottom: 30px; font-size: 16px;">
+                Bir kullanıcı acil durum yardım talebinde bulundu. Lütfen hemen müdahale ediniz.
+            </p>
+
+            <div class="info-section">
+                <div class="info-title">KULLANICI BİLGİLERİ</div>
+                <div class="info-row">
+                    <span class="label">Ad Soyad:</span>
+                    <span class="value">{{ user_full_name }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Telefon:</span>
+                    <span class="value"><a href="tel:{{ user_phone }}" style="color: #000; text-decoration: none;">{{ user_phone }}</a></span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Email:</span>
+                    <span class="value">{{ user_email }}</span>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <div class="info-title">SİPARİŞ DETAYLARI</div>
+                <div class="info-row">
+                    <span class="label">Sipariş ID:</span>
+                    <span class="value">#{{ order_id }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Plaka:</span>
+                    <span class="value">{{ license_plate }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Durum:</span>
+                    <span class="value">{{ order_status }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Zaman:</span>
+                    <span class="value">{{ created_at }}</span>
+                </div>
+            </div>
+
+            <div class="map-button-container">
+                <a href="{{ maps_link }}" class="map-button">KONUMA GİT (HARİTA)</a>
+            </div>
+            
+            <p style="font-size: 12px; color: #999; text-align: center;">
+                Lokasyon: {{ lat }}, {{ lng }}
+            </p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2024 Premium Vale Hizmetleri. Bu otomatik bir bildirimdir.</p>
+        </div>
+    </div>
+</body>
+</html>

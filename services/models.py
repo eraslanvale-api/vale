@@ -21,3 +21,21 @@ class Service(models.Model):
     class Meta:
         verbose_name = "Service"
         verbose_name_plural = "Services"
+
+class Vehicle(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    plate = models.CharField(max_length=20, unique=True, verbose_name="Plaka")
+    brand = models.CharField(max_length=50, blank=True, null=True, verbose_name="Marka")
+    model = models.CharField(max_length=50, blank=True, null=True, verbose_name="Model")
+    color = models.CharField(max_length=30, blank=True, null=True, verbose_name="Renk")
+    is_active = models.BooleanField(default=True, verbose_name="Aktif")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.plate} ({self.brand} {self.model})"
+
+    class Meta:
+        verbose_name = "Araç"
+        verbose_name_plural = "Araçlar"

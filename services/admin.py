@@ -1,5 +1,14 @@
 from django.contrib import admin
-from .models import Service
-# Register your models here.
+from import_export.admin import ImportExportModelAdmin
+from .models import Service, Vehicle
 
-admin.site.register(Service)
+# Register your models here.
+@admin.register(Service)
+class ServiceAdmin(ImportExportModelAdmin):
+    pass
+
+@admin.register(Vehicle)
+class VehicleAdmin(ImportExportModelAdmin):
+    list_display = ('plate', 'brand', 'model', 'color', 'is_active')
+    search_fields = ('plate', 'brand', 'model')
+    list_filter = ('is_active', 'brand')
