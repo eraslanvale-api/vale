@@ -21,6 +21,9 @@ class OrderAdmin(ImportExportModelAdmin):
             'fields': ('driver', 'vehicle', 'license_plate'),
             'description': 'Sürücü ve Araç atamasını buradan yapınız. Plaka, seçilen araçtan otomatik olarak doldurulur.'
         }),
+        ('Acil Durum Bilgileri', {
+            'fields': ('emergency_contact_name', 'emergency_contact_phone'),
+        }),
         ('Lokasyon ve Zaman', {
             'fields': ('pickup_address', 'dropoff_address', 'pickup_time', 'distance_km', 'duration_min')
         }),
