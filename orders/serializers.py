@@ -111,6 +111,13 @@ class OrderSerializer(serializers.ModelSerializer):
             return f"{obj.vehicle.plate} - {obj.vehicle.brand} {obj.vehicle.model}"
         return obj.license_plate or "Araç bilgisi yok"
 
+    def create(self, validated_data):
+        stops_data = validated_data.pop('stops', [])
+        order = Order.objects.create(**validated_data)
+        for stop_data in stops_data:
+            OrderStop.objects.create(order=order, **stop_data)
+        return order
+
     class Meta:
         model = Order
         fields = [
