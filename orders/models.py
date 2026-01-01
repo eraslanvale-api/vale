@@ -97,3 +97,21 @@ class EmergencyAlert(models.Model):
 
     def __str__(self):
         return f"Emergency: {self.order.id} - {self.user.email}"
+
+class VehicleHandoverPhoto(models.Model):
+    PHOTO_TYPES = (
+        ('front', 'Ön'),
+        ('back', 'Arka'),
+        ('right', 'Sağ'),
+        ('left', 'Sol'),
+    )
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='handover_photos')
+    photo = models.ImageField(upload_to='handover_photos/')
+    photo_type = models.CharField(max_length=20, choices=PHOTO_TYPES)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('order', 'photo_type') # Her açıdan sadece bir fotoğraf
+
+    def __str__(self):
+        return f"{self.order.id} - {self.get_photo_type_display()}"

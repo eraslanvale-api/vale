@@ -2,7 +2,7 @@ from rest_framework import status, generics, permissions, views
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import logout
-from .models import User, PushToken, Address, Invoice
+from .models import User, PushToken, Address, Invoice, EmergencyContact
 from .utils import send_password_reset_email, send_verification_email
 
 from .serializers import (
@@ -17,7 +17,8 @@ from .serializers import (
     AddressSerializer,
     InvoiceSerializer,
     AccountVerificationSerializer,
-    ResendVerificationSerializer
+    ResendVerificationSerializer,
+    EmergencyContactSerializer
 )
 
 class RegisterView(generics.CreateAPIView):
@@ -236,3 +237,22 @@ class AddressDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         return Address.objects.filter(user=self.request.user)
+
+
+class EmergencyContactListCreateView(generics.ListCreateAPIView):
+    serializer_class = EmergencyContactSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return EmergencyContact.objects.filter(user=self.request.user)
+    
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class EmergencyContactDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = EmergencyContactSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return EmergencyContact.objects.filter(user=self.request.user)

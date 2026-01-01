@@ -1,6 +1,6 @@
 from django.contrib import admin
 from import_export.admin import ImportExportModelAdmin
-from .models import Order, OrderStop,EmergencyAlert
+from .models import Order, OrderStop,EmergencyAlert,VehicleHandoverPhoto
 
 class OrderStopInline(admin.TabularInline):
     model = OrderStop
@@ -34,5 +34,11 @@ class OrderAdmin(ImportExportModelAdmin):
 @admin.register(EmergencyAlert)
 class EmergencyAlertAdmin(ImportExportModelAdmin):
     list_display = ('id', 'order', 'user', 'created_at')
+    list_filter = ('order__status', 'created_at')
+    search_fields = ('id', 'order__id', 'user__email', 'driver__email')
+
+@admin.register(VehicleHandoverPhoto)
+class VehicleHandoverPhotoAdmin(admin.ModelAdmin):
+    list_display = ('id', 'order', 'created_at')
     list_filter = ('order__status', 'created_at')
     search_fields = ('id', 'order__id', 'user__email', 'driver__email')

@@ -9,11 +9,13 @@ from .views import (
     OrderCancelView,
     DriverOnWayView,
     DriverStartJobView,
-    EmergencyAlertCreateView
+    EmergencyAlertCreateView,
+    VehicleHandoverPhotoCreateView
 )
 
 urlpatterns = [
     path('emergency-alert/', EmergencyAlertCreateView.as_view(), name='emergency-alert-create'),
+    path('handover-photos/', VehicleHandoverPhotoCreateView.as_view(), name='handover-photo-create'),
     path('', OrderListView.as_view(), name='order_list'),
     path('driver/pool/', DriverJobPoolView.as_view(), name='driver-job-pool'),
     path('driver/my-jobs/', DriverMyJobsView.as_view(), name='driver-my-jobs'),

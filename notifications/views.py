@@ -32,3 +32,19 @@ class MarkAllReadView(APIView):
         # Kullanıcının tüm okunmamış bildirimlerini okundu olarak işaretle
         updated_count = Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
         return Response({"message": f"{updated_count} notifications marked as read."}, status=status.HTTP_200_OK)
+
+class UpdatePushTokenView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        token = request.data.get('token')
+        if not token:
+            return Response({"error": "Token is required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        user = request.user
+        # Token varsa güncelle (kullanıcı değişmiş olabilir), yoksa oluştur
+        ExpoPushToken.objects.update_or_create(
+            token=token,
+            defaults={'user': user}
+        )
+        return Response({"message": "Push token updated successfully"}, status=status.HTTP_200_OK)

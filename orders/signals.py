@@ -5,6 +5,11 @@ from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from django.conf import settings
 from .models import EmergencyAlert, Order
+from django.contrib.auth import get_user_model
+from notifications.utils import send_expo_push_notification
+from accounts.models import ExpoPushToken
+from notifications.models import Notification
+User = get_user_model()
 
 @receiver(pre_save, sender=Order)
 def order_pre_save(sender, instance, **kwargs):
@@ -15,15 +20,18 @@ def order_pre_save(sender, instance, **kwargs):
         try:
             old_instance = Order.objects.get(pk=instance.pk)
             instance._old_status = old_instance.status
+            instance._old_driver_id = old_instance.driver_id
         except Order.DoesNotExist:
             instance._old_status = None
+            instance._old_driver_id = None
     else:
         instance._old_status = None
+        instance._old_driver_id = None
 
 @receiver(post_save, sender=Order)
 def order_post_save(sender, instance, created, **kwargs):
     """
-    Sipariş oluşturulduğunda veya durumu değiştiğinde mail gönder
+    Sipariş oluşturulduğunda veya durumu değiştiğinde mail gönder ve bildirim gönder
     """
     should_send_email = False
     email_subject = ""
@@ -33,23 +41,177 @@ def order_post_save(sender, instance, created, **kwargs):
 
     if created:
         should_send_email = True
-        email_subject = f"Siparişiniz Alındı: #{instance.id}"
-        email_title = "SİPARİŞİNİZ ALINDI"
-        email_message = f"Sayın {instance.user.full_name or instance.user.email}, siparişiniz başarıyla oluşturulmuştur."
+        email_subject = f"Talebiniz Alındı: #{instance.id}"
+        email_title = "TALEBİNİZ ALINDI"
+        email_message = f"Sayın {instance.user.full_name or instance.user.email}, talebiniz başarıyla oluşturulmuştur."
         email_color = "#22c55e" # Green
-    elif hasattr(instance, '_old_status') and instance._old_status != instance.status:
+        
+        # --- PUSH NOTIFICATION: Yeni Sipariş (Atanan Şoföre) ---
+        if instance.driver:
+            try:
+                tokens = list(ExpoPushToken.objects.filter(user=instance.driver).values_list('token', flat=True))
+                
+                notification_title = "Yeni İş Atandı"
+                notification_message = f"Size yeni bir transfer atandı! ({instance.pickup_address} -> {instance.dropoff_address})"
+                
+                Notification.objects.create(
+                    user=instance.driver,
+                    title=notification_title,
+                    message=notification_message
+                )
+
+                if tokens:
+                    send_expo_push_notification(
+                        tokens=tokens,
+                        title=notification_title,
+                        message=notification_message,
+                        data={'orderId': instance.id, 'type': 'new_job'}
+                    )
+            except Exception as e:
+                print(f"Push Notification Error (New Job): {e}")
+
+    # Sürücü Değişikliği / Ataması Kontrolü (Update durumunda)
+    if not created and hasattr(instance, '_old_driver_id') and instance.driver_id != instance._old_driver_id:
+        if instance.driver:
+            try:
+                tokens = list(ExpoPushToken.objects.filter(user=instance.driver).values_list('token', flat=True))
+                
+                notification_title = "Yeni İş Atandı"
+                notification_message = f"Size yeni bir transfer atandı! ({instance.pickup_address} -> {instance.dropoff_address})"
+                
+                Notification.objects.create(
+                    user=instance.driver,
+                    title=notification_title,
+                    message=notification_message
+                )
+
+                if tokens:
+                    send_expo_push_notification(
+                        tokens=tokens,
+                        title=notification_title,
+                        message=notification_message,
+                        data={'orderId': instance.id, 'type': 'new_job'}
+                    )
+            except Exception as e:
+                print(f"Push Notification Error (Driver Assigned): {e}")
+
+    if not created and hasattr(instance, '_old_status') and instance._old_status != instance.status:
         if instance.status == 'cancelled':
             should_send_email = True
-            email_subject = f"Sipariş İptal Edildi: #{instance.id}"
-            email_title = "SİPARİŞ İPTAL EDİLDİ"
-            email_message = f"Sayın {instance.user.full_name or instance.user.email}, siparişiniz iptal edilmiştir."
+            email_subject = f"Yolculuk İptal Edildi: #{instance.id}"
+            email_title = "YOLCULUK İPTAL EDİLDİ"
+            email_message = f"Sayın {instance.user.full_name or instance.user.email}, yolculuğunuz iptal edilmiştir."
             email_color = "#ef4444" # Red
+            
+            # --- PUSH NOTIFICATION: İptal ---
+            try:
+                notification_title = "Yolculuk İptal Edildi"
+                notification_message = "Yolculuğunuz iptal edilmiştir."
+                
+                # Veritabanına kayıt
+                Notification.objects.create(
+                    user=instance.user,
+                    title=notification_title,
+                    message=notification_message
+                )
+
+                tokens = list(ExpoPushToken.objects.filter(user=instance.user).values_list('token', flat=True))
+                if tokens:
+                    send_expo_push_notification(
+                        tokens=tokens,
+                        title=notification_title,
+                        message=notification_message,
+                        data={'orderId': instance.id, 'type': 'order_update', 'status': 'cancelled'}
+                    )
+            except Exception as e:
+                print(f"Push Notification Error (Cancelled): {e}")
+
         elif instance.status == 'completed':
             should_send_email = True
-            email_subject = f"Sipariş Tamamlandı: #{instance.id}"
-            email_title = "SİPARİŞ TAMAMLANDI"
+            email_subject = f"Yolculuk Tamamlandı: #{instance.id}"
+            email_title = "YOLCULUK TAMAMLANDI"
             email_message = f"Sayın {instance.user.full_name or instance.user.email}, yolculuğunuz tamamlanmıştır. Bizi tercih ettiğiniz için teşekkür ederiz."
             email_color = "#3b82f6" # Blue
+            
+            # --- PUSH NOTIFICATION: Tamamlandı ---
+            try:
+                notification_title = "Yolculuk Tamamlandı"
+                notification_message = "Bizi tercih ettiğiniz için teşekkür ederiz."
+
+                # Veritabanına kayıt
+                Notification.objects.create(
+                    user=instance.user,
+                    title=notification_title,
+                    message=notification_message
+                )
+
+                tokens = list(ExpoPushToken.objects.filter(user=instance.user).values_list('token', flat=True))
+                if tokens:
+                    send_expo_push_notification(
+                        tokens=tokens,
+                        title=notification_title,
+                        message=notification_message,
+                        data={'orderId': instance.id, 'type': 'order_update', 'status': 'completed'}
+                    )
+            except Exception as e:
+                print(f"Push Notification Error (Completed): {e}")
+        
+        # --- PUSH NOTIFICATION: Sürücü Kabul Etti / Yola Çıktı ---
+        elif instance.status == 'on_way':
+            try:
+                tokens = list(ExpoPushToken.objects.filter(user=instance.user).values_list('token', flat=True))
+                
+                driver_name = ""
+                if instance.driver:
+                    driver_name = f"{instance.driver.first_name} {instance.driver.last_name}".strip() or instance.driver.full_name
+                
+                notification_title = "Sürücünüz Yola Çıktı"
+                if driver_name:
+                    notification_message = f"Sürücünüz sizi almak üzere yola çıktı."
+                else:
+                    notification_message = "Sürücünüz sizi almak üzere yola çıktı."
+
+                # Veritabanına kayıt
+                Notification.objects.create(
+                    user=instance.user,
+                    title=notification_title,
+                    message=notification_message
+                )
+
+                if tokens:
+                    send_expo_push_notification(
+                        tokens=tokens,
+                        title=notification_title,
+                        message=notification_message,
+                        data={'orderId': instance.id, 'type': 'order_update', 'status': 'on_way'}
+                    )
+            except Exception as e:
+                print(f"Push Notification Error (On Way): {e}")
+
+        # --- PUSH NOTIFICATION: Sürüş Başladı ---
+        elif instance.status == 'in_progress':
+            try:
+                tokens = list(ExpoPushToken.objects.filter(user=instance.user).values_list('token', flat=True))
+                
+                notification_title = "Yolculuk Başladı"
+                notification_message = "Keyifli yolculuklar dileriz."
+
+                # Veritabanına kayıt
+                Notification.objects.create(
+                    user=instance.user,
+                    title=notification_title,
+                    message=notification_message
+                )
+
+                if tokens:
+                     send_expo_push_notification(
+                        tokens=tokens,
+                        title=notification_title,
+                        message=notification_message,
+                        data={'orderId': instance.id, 'type': 'order_update', 'status': 'in_progress'}
+                    )
+            except Exception as e:
+                print(f"Push Notification Error (In Progress): {e}")
 
     if should_send_email:
         context = {

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from .models import User, PushToken, ExpoPushToken, Address, Invoice
+from .models import User, PushToken, ExpoPushToken, Address, Invoice, EmergencyContact
 
 class UserCreateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True)
@@ -23,6 +23,12 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ('id','email', 'full_name',  'phone_number', 'role','is_verified', 'vehicle_plate', 'vehicle_model')
         read_only_fields = ('id', 'email', 'is_staff', 'is_superuser')
 
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        if not ret.get('full_name') and (instance.first_name or instance.last_name):
+             ret['full_name'] = f"{instance.first_name or ''} {instance.last_name or ''}".strip()
+        return ret
 
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
@@ -171,9 +177,6 @@ class InvoiceSerializer(serializers.ModelSerializer):
         fields = ('id', 'email', 'invoice_type', 'full_name', 'company_name', 'tax_number', 'tax_office', 'citizen_id', 'phone_number', 'postal_code', 'city', 'district', 'description', 'is_default')
         read_only_fields = ('id',)
 
-    def create(self, validated_data):
-        user = self.context['request'].user
-        return Invoice.objects.create(user=user, **validated_data)
 
 
 class AccountVerificationSerializer(serializers.Serializer):
@@ -203,3 +206,10 @@ class AccountVerificationSerializer(serializers.Serializer):
 
 class ResendVerificationSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
+
+
+class EmergencyContactSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmergencyContact
+        fields = ('id', 'name', 'phone_number', 'relationship')
+        read_only_fields = ('id',)

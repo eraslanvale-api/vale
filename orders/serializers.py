@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Order, OrderStop, EmergencyAlert
+from .models import Order, OrderStop, EmergencyAlert, VehicleHandoverPhoto
 from services.serializers import ServiceSerializer
 from services.models import Service
 from accounts.models import Invoice
@@ -16,6 +16,11 @@ class OrderStopSerializer(serializers.ModelSerializer):
         model = OrderStop
         fields = ['address', 'lat', 'lng']
 
+class VehicleHandoverPhotoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VehicleHandoverPhoto
+        fields = ['id', 'order', 'photo', 'photo_type', 'created_at']
+        read_only_fields = ['created_at']
 class OrderSerializer(serializers.ModelSerializer):
     stops = OrderStopSerializer(many=True, read_only=False, required=False)
     serviceId = serializers.SlugRelatedField(
@@ -62,6 +67,49 @@ class OrderSerializer(serializers.ModelSerializer):
     driver = UserSerializer(read_only=True)
     
     vehicle_details = serializers.SerializerMethodField()
+    
+    handover_photos = VehicleHandoverPhotoSerializer(many=True, read_only=True)
+
+    def get_serviceName(self, obj):
+        return obj.service.name if obj.service else "Standart Hizmet"
+
+    def get_pickupLoc(self, obj):
+        return {
+            "lat": obj.pickup_lat,
+            "lng": obj.pickup_lng,
+            "address": obj.pickup_address
+        }
+
+    def get_dropoffLoc(self, obj):
+        return {
+            "lat": obj.dropoff_lat,
+            "lng": obj.dropoff_lng,
+            "address": obj.dropoff_address
+        }
+
+    def get_active(self, obj):
+        return obj.status in ['scheduled', 'searching', 'assigned', 'accepted', 'on_way', 'in_progress']
+
+    def get_dateLabel(self, obj):
+        return obj.pickup_time.strftime('%d.%m.%Y') if obj.pickup_time else ""
+
+    def get_customerName(self, obj):
+        if obj.user.full_name:
+            return obj.user.full_name
+        if obj.user.first_name or obj.user.last_name:
+            return f"{obj.user.first_name} {obj.user.last_name}"
+        return obj.user.email
+
+    def get_time(self, obj):
+        return obj.pickup_time.strftime('%H:%M') if obj.pickup_time else ""
+
+    def get_has_active_emergency(self, obj):
+        return obj.emergency_alerts.filter(is_resolved=False).exists()
+
+    def get_vehicle_details(self, obj):
+        if obj.vehicle:
+            return f"{obj.vehicle.plate} - {obj.vehicle.brand} {obj.vehicle.model}"
+        return obj.license_plate or "Araç bilgisi yok"
 
     class Meta:
         model = Order
@@ -73,54 +121,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'pickupLat', 'pickupLng', 'dropoffLat', 'dropoffLng',
             'emergencyContactName', 'emergencyContactPhone',
             'customerName', 'driver', 'created_at', 'invoiceId',
-            'license_plate', 'vehicle_details', 'has_active_emergency'
+            'license_plate', 'vehicle_details', 'has_active_emergency',
+            'handover_photos'
         ]
         read_only_fields = ['driver']
-
-    def get_vehicle_details(self, obj):
-        if obj.vehicle:
-            return {
-                "plate": obj.vehicle.plate,
-                "brand": obj.vehicle.brand,
-                "model": obj.vehicle.model,
-                "color": obj.vehicle.color
-            }
-        return None
-
-    def get_serviceName(self, obj):
-        return obj.service.name if obj.service else None
-
-    def get_customerName(self, obj):
-        return obj.user.full_name if obj.user.full_name else obj.user.email
-
-    def get_pickupLoc(self, obj):
-        return {"lat": obj.pickup_lat, "lng": obj.pickup_lng}
-
-    def get_dropoffLoc(self, obj):
-        return {"lat": obj.dropoff_lat, "lng": obj.dropoff_lng}
-
-    def get_active(self, obj):
-        return obj.status == 'active'
-
-    def get_dateLabel(self, obj):
-        # Örn: 24 Kas 2025 formatı
-        return obj.pickup_time.strftime("%d %b %Y") 
-
-    def get_time(self, obj):
-        return obj.pickup_time.strftime("%H:%M")
-
-    def get_has_active_emergency(self, obj):
-        return EmergencyAlert.objects.filter(order=obj, is_resolved=False).exists()
-    
-    def create(self, validated_data):
-        stops_data = validated_data.pop('stops', [])
-        service = validated_data.pop('service', None)
-        
-        # 'status' varsayılan olarak modelde 'scheduled' set ediliyor
-        
-        order = Order.objects.create(service=service, **validated_data)
-        
-        for i, stop_data in enumerate(stops_data):
-            OrderStop.objects.create(order=order, order_index=i, **stop_data)
-            
-        return order

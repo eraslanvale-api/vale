@@ -16,7 +16,9 @@ from .views import (
     AddressListCreateView,
     AddressDetailView,
     InvoiceListCreateView,
-    InvoiceDetailView
+    InvoiceDetailView,
+    EmergencyContactListCreateView,
+    EmergencyContactDetailView
 )
 
 urlpatterns = [
@@ -47,4 +49,8 @@ urlpatterns = [
     # Fatura işlemleri
     path('invoices/', InvoiceListCreateView.as_view(), name='invoice_list_create'),
     path('invoices/<uuid:pk>/', InvoiceDetailView.as_view(), name='invoice_detail'),
+
+    # Acil Durum Kişisi işlemleri
+    path('emergency-contacts/', EmergencyContactListCreateView.as_view(), name='emergency_contact_list_create'),
+    path('emergency-contacts/<uuid:pk>/', EmergencyContactDetailView.as_view(), name='emergency_contact_detail'),
 ]

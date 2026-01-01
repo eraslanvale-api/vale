@@ -26,7 +26,7 @@ class CustomUserAdmin(ImportExportModelAdmin, UserAdmin):
     ordering = ('email',)
     
     fieldsets = (
-        (None, {'fields': ('email', 'password')}),
+        (None, {'fields': ('email', 'password','first_name','last_name',)}),
         ('Kişisel Bilgiler', {'fields': ('full_name', 'phone_number', 'role')}),
         ('Doğrulama Durumu', {'fields': ('is_verified', 'verification_code', 'verification_code_sent_at', 'password_reset_code', 'password_reset_code_sent_at')}),
         ('İzinler', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
