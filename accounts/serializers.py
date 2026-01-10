@@ -4,6 +4,7 @@ from .models import User, PushToken, ExpoPushToken, Address, Invoice, EmergencyC
 
 class UserCreateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True)
+    phone_number = serializers.CharField(required=True)
 
     class Meta:
         model = User
@@ -16,6 +17,12 @@ class UserCreateSerializer(serializers.ModelSerializer):
             user.set_password(password)
             user.save()
         return user
+
+    def validate_phone_number(self, value):
+        """Telefon numarası benzersiz olmalı"""
+        if User.objects.filter(phone_number=value).exists():
+            raise serializers.ValidationError("Bu telefon numarası ile kayıtlı bir kullanıcı zaten mevcut.")
+        return value
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -49,19 +56,19 @@ class LoginSerializer(serializers.Serializer):
         return attrs
 
 class PasswordResetRequestSerializer(serializers.Serializer):
-    email = serializers.EmailField(required=True)
+    phone_number = serializers.CharField(required=True)
 
 class PasswordResetVerifySerializer(serializers.Serializer):
-    email = serializers.EmailField(required=True)
+    phone_number = serializers.CharField(required=True)
     code = serializers.CharField(required=True, max_length=4)
 
     def validate(self, attrs):
-        email = attrs.get('email')
+        phone_number = attrs.get('phone_number')
         code = attrs.get('code')
         try:
-            user = User.objects.get(email=email)
+            user = User.objects.get(phone_number=phone_number)
         except User.DoesNotExist:
-            raise serializers.ValidationError('Bu e-posta adresi ile kayıtlı bir kullanıcı bulunamadı.')
+            raise serializers.ValidationError('Bu telefon numarası ile kayıtlı bir kullanıcı bulunamadı.')
 
         if user.password_reset_code != code:
             raise serializers.ValidationError('Girdiğiniz kod hatalı. Lütfen tekrar deneyiniz.')
@@ -72,16 +79,16 @@ class PasswordResetVerifySerializer(serializers.Serializer):
         return attrs
 
 class SetNewPasswordSerializer(serializers.Serializer):
-    email = serializers.EmailField(required=True)
+    phone_number = serializers.CharField(required=True)
     new_password = serializers.CharField(required=True, write_only=True)
 
     def validate(self, attrs):
-        email = attrs.get('email')
+        phone_number = attrs.get('phone_number')
         
         try:
-            user = User.objects.get(email=email)
+            user = User.objects.get(phone_number=phone_number)
         except User.DoesNotExist:
-            raise serializers.ValidationError('Bu e-posta adresi ile kayıtlı bir kullanıcı bulunamadı.')
+            raise serializers.ValidationError('Bu telefon numarası ile kayıtlı bir kullanıcı bulunamadı.')
         
         attrs['user'] = user
         return attrs
@@ -180,15 +187,15 @@ class InvoiceSerializer(serializers.ModelSerializer):
 
 
 class AccountVerificationSerializer(serializers.Serializer):
-    email = serializers.EmailField(required=True)
+    phone_number = serializers.CharField(required=True)
     code = serializers.CharField(required=True, max_length=4)
 
     def validate(self, attrs):
-        email = attrs.get('email')
+        phone_number = attrs.get('phone_number')
         code = attrs.get('code')
         
         try:
-            user = User.objects.get(email=email)
+            user = User.objects.get(phone_number=phone_number)
         except User.DoesNotExist:
             raise serializers.ValidationError('Kullanıcı bulunamadı.')
 
@@ -205,7 +212,7 @@ class AccountVerificationSerializer(serializers.Serializer):
         return attrs
 
 class ResendVerificationSerializer(serializers.Serializer):
-    email = serializers.EmailField(required=True)
+    phone_number = serializers.CharField(required=True)
 
 
 class EmergencyContactSerializer(serializers.ModelSerializer):
@@ -213,3 +220,32 @@ class EmergencyContactSerializer(serializers.ModelSerializer):
         model = EmergencyContact
         fields = ('id', 'name', 'phone_number', 'relationship')
         read_only_fields = ('id',)
+
+
+class PasswordChangeRequestSerializer(serializers.Serializer):
+    """Şifre değiştirme isteği için mevcut şifreyi doğrular"""
+    current_password = serializers.CharField(required=True, write_only=True)
+
+    def validate_current_password(self, value):
+        user = self.context['request'].user
+        if not user.check_password(value):
+            raise serializers.ValidationError('Mevcut şifreniz hatalı.')
+        return value
+
+
+class PasswordChangeConfirmSerializer(serializers.Serializer):
+    """SMS kodu ve yeni şifre ile şifre değişikliğini tamamlar"""
+    code = serializers.CharField(required=True, max_length=4)
+    new_password = serializers.CharField(required=True, write_only=True, min_length=6)
+
+    def validate(self, attrs):
+        user = self.context['request'].user
+        code = attrs.get('code')
+
+        if user.password_reset_code != code:
+            raise serializers.ValidationError({'code': 'Doğrulama kodu hatalı.'})
+
+        if user.password_reset_code_expired:
+            raise serializers.ValidationError({'code': 'Kodun süresi dolmuş. Lütfen yeni kod isteyiniz.'})
+
+        return attrs

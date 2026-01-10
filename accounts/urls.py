@@ -18,7 +18,9 @@ from .views import (
     InvoiceListCreateView,
     InvoiceDetailView,
     EmergencyContactListCreateView,
-    EmergencyContactDetailView
+    EmergencyContactDetailView,
+    PasswordChangeRequestView,
+    PasswordChangeConfirmView
 )
 
 urlpatterns = [
@@ -29,10 +31,14 @@ urlpatterns = [
     path('delete/', DeleteAccountView.as_view(), name='delete_account'),
     path('membership-cancel/', MembershipCancelView.as_view(), name='membership_cancel'),
     
-    # Şifre sıfırlama işlemleri
+    # Şifre sıfırlama işlemleri (şifremi unuttum)
     path('password-reset/request/', PasswordResetRequestView.as_view(), name='password_reset_request'),
     path('password-reset/verify/', PasswordResetVerifyView.as_view(), name='password_reset_verify'),
     path('password-reset/confirm/', SetNewPasswordView.as_view(), name='password_reset_confirm'),
+    
+    # Şifre değiştirme işlemleri (giriş yapmış kullanıcı için)
+    path('password-change/request/', PasswordChangeRequestView.as_view(), name='password_change_request'),
+    path('password-change/confirm/', PasswordChangeConfirmView.as_view(), name='password_change_confirm'),
     
     # Hesap doğrulama işlemleri
     path('verify-account/', VerifyAccountView.as_view(), name='verify_account'),

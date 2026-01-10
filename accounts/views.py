@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import logout
 from .models import User, PushToken, Address, Invoice, EmergencyContact
-from .utils import send_password_reset_email, send_verification_email
+from .utils import send_password_reset_sms, send_verification_sms
 
 from .serializers import (
     UserCreateSerializer, 
@@ -18,7 +18,9 @@ from .serializers import (
     InvoiceSerializer,
     AccountVerificationSerializer,
     ResendVerificationSerializer,
-    EmergencyContactSerializer
+    EmergencyContactSerializer,
+    PasswordChangeRequestSerializer,
+    PasswordChangeConfirmSerializer
 )
 
 class RegisterView(generics.CreateAPIView):
@@ -26,11 +28,46 @@ class RegisterView(generics.CreateAPIView):
     serializer_class = UserCreateSerializer
     permission_classes = [permissions.AllowAny]
 
+    def create(self, request, *args, **kwargs):
+        email = request.data.get('email')
+        if email:
+            try:
+                existing_user = User.objects.get(email=email)
+                if not existing_user.is_active:
+                    # Kullanıcı var ama silinmiş (pasif). Hesabı tekrar aktifleştir.
+                    serializer = self.get_serializer(existing_user, data=request.data)
+                    serializer.is_valid(raise_exception=True)
+                    
+                    user = existing_user
+                    
+                    # Alanları güncelle
+                    for attr, value in serializer.validated_data.items():
+                        if attr == 'password':
+                            user.set_password(value)
+                        else:
+                            setattr(user, attr, value)
+                    
+                    user.is_active = True
+                    user.is_verified = False # Tekrar doğrulama gereksin
+                    
+                    # Doğrulama kodu oluştur ve kaydet
+                    code = user.generate_verification_code()
+                    user.save()
+                    
+                    send_verification_sms(user.phone_number, code)
+                    
+                    headers = self.get_success_headers(serializer.data)
+                    return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+            except User.DoesNotExist:
+                pass
+        
+        return super().create(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         user = serializer.save()
         # Kayıt sonrası doğrulama kodu gönder
         code = user.generate_verification_code()
-        send_verification_email(user.email, code)
+        send_verification_sms(user.phone_number, code)
 
 class LoginView(views.APIView):
     permission_classes = [permissions.AllowAny]
@@ -43,7 +80,8 @@ class LoginView(views.APIView):
             # Hesap doğrulanmamışsa uyarı dön veya izin verme
             # if not user.is_verified:
             #     return Response({"error": "Hesabınızı doğrulamanız gerekmektedir."}, status=status.HTTP_403_FORBIDDEN)
-            
+            if not user.is_active:
+                return Response({"error": "Hesabınız silinmiştir. Lütfen destek ekibiyle iletişime geçin."}, status=status.HTTP_403_FORBIDDEN)
             token, created = Token.objects.get_or_create(user=user)
             
             # Profil doluluk oranı veya diğer bilgiler eklenebilir
@@ -83,7 +121,7 @@ class PasswordResetRequestView(views.APIView):
             try:
                 user = User.objects.get(email=email)
                 code = user.generate_password_reset_code()
-                send_password_reset_email(user.email, code)
+                send_password_reset_sms(user.phone_number, code)
                 return Response({"message": "Sıfırlama kodu gönderildi"}, status=status.HTTP_200_OK)
             except User.DoesNotExist:
                 # Güvenlik için kullanıcı bulunamadı demeyebiliriz, ama UX için şimdilik diyelim
@@ -156,7 +194,7 @@ class ResendVerificationView(views.APIView):
                     return Response({"message": "Hesap zaten doğrulanmış"}, status=status.HTTP_200_OK)
                 
                 code = user.generate_verification_code()
-                send_verification_email(user.email, code)
+                send_verification_sms(user.phone_number, code)
                 return Response({"message": "Doğrulama kodu tekrar gönderildi"}, status=status.HTTP_200_OK)
             except User.DoesNotExist:
                 return Response({"error": "Kullanıcı bulunamadı"}, status=status.HTTP_404_NOT_FOUND)
@@ -256,3 +294,34 @@ class EmergencyContactDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         return EmergencyContact.objects.filter(user=self.request.user)
+
+
+class PasswordChangeRequestView(views.APIView):
+    """Şifre değiştirme isteği - mevcut şifreyi doğrular ve SMS kodu gönderir"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = PasswordChangeRequestSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            user = request.user
+            # Şifre sıfırlama kodunu kullanarak SMS gönder
+            code = user.generate_password_reset_code()
+            send_password_reset_sms(user.phone_number, code)
+            return Response({"message": "Doğrulama kodu telefonunuza gönderildi."}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PasswordChangeConfirmView(views.APIView):
+    """Şifre değiştirme onayı - SMS kodunu doğrular ve yeni şifreyi kaydeder"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = PasswordChangeConfirmSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            user = request.user
+            new_password = serializer.validated_data['new_password']
+            user.set_password(new_password)
+            user.password_reset_code = None  # Kodu geçersiz kıl
+            user.save()
+            return Response({"message": "Şifreniz başarıyla değiştirildi."}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

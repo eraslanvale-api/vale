@@ -31,7 +31,12 @@ class OrderListView(generics.ListCreateAPIView):
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        user = self.request.user
+        if user.role == 'Şoför':
+            serializer.save(user=user, driver=user, status='assigned')
+        else:
+            serializer.save(user=user)
+
 
 class OrderDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = OrderSerializer
