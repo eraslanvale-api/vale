@@ -122,15 +122,15 @@ class PasswordResetRequestView(views.APIView):
     def post(self, request):
         serializer = PasswordResetRequestSerializer(data=request.data)
         if serializer.is_valid():
-            email = serializer.validated_data['email']
+            phone_number = serializer.validated_data['phone_number']
             try:
-                user = User.objects.get(email=email)
+                user = User.objects.get(phone_number=phone_number)
                 code = user.generate_password_reset_code()
                 send_password_reset_sms(user.phone_number, code)
                 return Response({"message": "Sıfırlama kodu gönderildi"}, status=status.HTTP_200_OK)
             except User.DoesNotExist:
                 # Güvenlik için kullanıcı bulunamadı demeyebiliriz, ama UX için şimdilik diyelim
-                return Response({"error": "Kullanıcı bulunamadı"}, status=status.HTTP_404_NOT_FOUND)
+                return Response({"error": "Bu numara ile kayıtlı bir hesap bulunamadı"}, status=status.HTTP_404_NOT_FOUND)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class PasswordResetVerifyView(views.APIView):

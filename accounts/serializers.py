@@ -80,15 +80,23 @@ class PasswordResetVerifySerializer(serializers.Serializer):
 
 class SetNewPasswordSerializer(serializers.Serializer):
     phone_number = serializers.CharField(required=True)
+    code = serializers.CharField(required=True, max_length=4)
     new_password = serializers.CharField(required=True, write_only=True)
 
     def validate(self, attrs):
         phone_number = attrs.get('phone_number')
+        code = attrs.get('code')
         
         try:
             user = User.objects.get(phone_number=phone_number)
         except User.DoesNotExist:
             raise serializers.ValidationError('Bu telefon numarası ile kayıtlı bir kullanıcı bulunamadı.')
+        
+        if user.password_reset_code != code:
+            raise serializers.ValidationError('Girdiğiniz kod hatalı veya süresi dolmuş.')
+            
+        if user.password_reset_code_expired:
+            raise serializers.ValidationError('Bu kodun süresi dolmuş. Lütfen yeni bir kod isteyiniz.')
         
         attrs['user'] = user
         return attrs
