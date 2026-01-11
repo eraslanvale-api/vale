@@ -1,20 +1,31 @@
 import requests
-import base64
+import logging
 from django.conf import settings
 
+# Logger konfigürasyonu
+logger = logging.getLogger(__name__)
+
 # SMS API Ayarları - NAC Telekom
-SMS_API_URL = "https://smslogin.nac.com.tr:9588/sms/create"
+# Port 9588 yerine standart 443 portu (https) kullanılıyor.
+# Cloudflare Worker Proxy (PythonAnywhere whitelist engelini aşmak için)
+# Orijinal URL: https://smsapi.nac.com.tr/v1/json/syncreply/Submit
+# SSL hatası almamak için HTTP deniyoruz (Cloudflare genelde HTTPS'e yönlendirir ama proxy tüneli için HTTP daha rahat olabilir)
+SMS_API_URL = "http://still-hill-6661sms-proxy.eraslanvale.workers.dev/"
+
 SMS_USERNAME = "ferhatkucukaslan"
 SMS_API_PASSWORD = "ajcDLcgdeHV"  # API şifresi
 SMS_FROM = "08507770174"
 
-
-def get_auth_header():
-    """Basic Authentication header oluştur"""
-    credentials = f"{SMS_USERNAME}:{SMS_API_PASSWORD}"
-    encoded = base64.b64encode(credentials.encode()).decode()
-    return {"Authorization": f"Basic {encoded}"}
-
+# PythonAnywhere Proxy Ayarları
+# Free hesaplar için proxy gereklidir.
+# Cloudflare Worker kullanıldığında, Worker adresi genellikle whitelist'te olmayabilir 
+# ancak workers.dev domainleri bazen erişilebilir olabilir. 
+# Eğer Cloudflare Worker da 403 verirse, tek çare PythonAnywhere whitelist talebidir.
+PROXY_URL = "http://proxy.server:3128"
+PROXIES = {
+    "http": PROXY_URL,
+    "https": PROXY_URL,
+}
 
 def format_phone_number(phone_number):
     """Telefon numarasını API formatına çevir (90XXXXXXXXXX)"""
@@ -39,36 +50,77 @@ def send_sms(phone_number, message):
     """SMS gönderim fonksiyonu - NAC Telekom / Netgsm"""
     phone = format_phone_number(phone_number)
     
-    headers = get_auth_header()
-    headers["Content-Type"] = "application/json"
+    headers = {"Content-Type": "application/json"}
     
-    # İstenen yeni JSON yapısı
+    # Yeni API JSON yapısı (smsapi.nac.com.tr)
     payload = {
-        "type": 1,
-        "sendingType": 0,
-        "title": "Premium Vale",
-        "content": message,
-        "number": phone,  # Formatlanmış numara (örn: 905xxxxxxxxx)
-        "encoding": 0,
-        "sender": SMS_FROM,
-        "validity": 60,
-        "commercial": False,
-        "recipientType": 0
+        "Credential": {
+            "Username": SMS_USERNAME,
+            "Password": SMS_API_PASSWORD
+        },
+        "Header": {
+            "From": SMS_FROM,
+            "ValidityPeriod": 0
+        },
+        "Message": message,
+        "To": [phone],
+        "DataCoding": "Default"
     }
     
+    logger.info(f"Sending SMS to {phone} with content: {message}")
+    
     try:
-        response = requests.post(SMS_API_URL, json=payload, headers=headers, timeout=30)
-        
-        # Yanıt formatı değişmiş olabilir, status_code ile kontrol edelim
+        # PythonAnywhere Free Tier için Proxy Ayarları
+        try:
+            response = requests.post(
+                SMS_API_URL, 
+                json=payload, 
+                headers=headers, 
+                timeout=30,
+                proxies=PROXIES
+            )
+        except (requests.exceptions.ProxyError, requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError) as proxy_err:
+             # Proxy hatası (Örn: Local ortamda proxy yoksa veya proxy 403 veriyorsa)
+             # Eğer 403 Forbidden varsa bu whitelist sorunudur, ancak yine de proxysiz denemekte fayda var (belki localdir)
+             logger.warning(f"Proxy bağlantı hatası veya erişim engeli: {proxy_err}. Proxysiz deneniyor...")
+             response = requests.post(
+                SMS_API_URL, 
+                json=payload, 
+                headers=headers, 
+                timeout=30
+            )
+
         if response.status_code == 200:
-            print(f"SMS başarıyla gönderildi: {phone}")
+            logger.info(f"SMS başarıyla gönderildi: {phone} - Response: {response.text}")
             return True
         else:
-            print(f"SMS gönderim hatası: Status={response.status_code}, Body={response.text}")
+            logger.error(f"SMS gönderim hatası: Status={response.status_code}, Body={response.text}")
+            return False
+            
+    except requests.exceptions.SSLError as e:
+        logger.warning(f"SSL Error for {SMS_API_URL}. Retrying without verify: {e}")
+        try:
+            # SSL hatası durumunda verify=False ile tekrar dene
+            response = requests.post(
+                SMS_API_URL, 
+                json=payload, 
+                headers=headers, 
+                timeout=30, 
+                verify=False,
+                proxies=PROXIES
+            )
+            if response.status_code == 200:
+                logger.info(f"SMS başarıyla gönderildi (No Verify): {phone} - Response: {response.text}")
+                return True
+            else:
+                logger.error(f"SMS gönderim hatası (No Verify): Status={response.status_code}, Body={response.text}")
+                return False
+        except Exception as e2:
+            logger.error(f"SMS retry failed: {e2}")
             return False
             
     except Exception as e:
-        print(f"SMS gönderim hatası: {e}")
+        logger.error(f"SMS gönderim genel hatası: {e}")
         return False
 
 

@@ -2,6 +2,10 @@ from rest_framework import status, generics, permissions, views
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import logout
+import logging
+
+logger = logging.getLogger(__name__)
+
 from .models import User, PushToken, Address, Invoice, EmergencyContact
 from .utils import send_password_reset_sms, send_verification_sms
 
@@ -67,6 +71,7 @@ class RegisterView(generics.CreateAPIView):
         user = serializer.save()
         # Kayıt sonrası doğrulama kodu gönder
         code = user.generate_verification_code()
+        logger.info(f"User created: {user.email}, Phone: {user.phone_number}. Sending SMS...")
         send_verification_sms(user.phone_number, code)
 
 class LoginView(views.APIView):
@@ -187,9 +192,9 @@ class ResendVerificationView(views.APIView):
     def post(self, request):
         serializer = ResendVerificationSerializer(data=request.data)
         if serializer.is_valid():
-            email = serializer.validated_data['email']
+            phone_number = serializer.validated_data['phone_number']
             try:
-                user = User.objects.get(email=email)
+                user = User.objects.get(phone_number=phone_number)
                 if user.is_verified:
                     return Response({"message": "Hesap zaten doğrulanmış"}, status=status.HTTP_200_OK)
                 
