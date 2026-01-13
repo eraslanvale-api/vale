@@ -94,11 +94,21 @@ class OrderSerializer(serializers.ModelSerializer):
         return obj.pickup_time.strftime('%d.%m.%Y') if obj.pickup_time else ""
 
     def get_customerName(self, obj):
+        # 1. Full Name
         if obj.user.full_name:
             return obj.user.full_name
+            
+        # 2. First + Last
         if obj.user.first_name or obj.user.last_name:
             return f"{obj.user.first_name} {obj.user.last_name}"
-        return obj.user.email
+            
+        # 3. Email (if not dummy)
+        email = obj.user.email
+        if email and '@noemail.vipvale.com' not in email:
+            return email
+            
+        # 4. Phone
+        return obj.user.phone_number
 
     def get_time(self, obj):
         return obj.pickup_time.strftime('%H:%M') if obj.pickup_time else ""

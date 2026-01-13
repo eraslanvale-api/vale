@@ -5,6 +5,8 @@ from .models import User, PushToken, ExpoPushToken, Address, Invoice, EmergencyC
 class UserCreateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True)
     phone_number = serializers.CharField(required=True)
+    email = serializers.EmailField(required=False, allow_blank=True, allow_null=True)
+    full_name = serializers.CharField(required=False, allow_blank=True)
 
     class Meta:
         model = User
@@ -12,6 +14,17 @@ class UserCreateSerializer(serializers.ModelSerializer):
         
     def create(self, validated_data):
         password = validated_data.pop('password', None)
+        
+        # Email zorunlu değil, yoksa telefon numarasından üret
+        email = validated_data.get('email')
+        phone_number = validated_data.get('phone_number')
+        
+        if not email:
+            # Email yoksa, telefon numarası bazlı unique bir email oluştur
+            # Format: 905xxxxxxxxx@noemail.vipvale.com
+            clean_phone = phone_number.replace(" ", "").replace("+", "")
+            validated_data['email'] = f"{clean_phone}@noemail.vipvale.com"
+            
         user = super().create(validated_data)
         if password:
             user.set_password(password)
@@ -33,24 +46,76 @@ class UserSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
-        if not ret.get('full_name') and (instance.first_name or instance.last_name):
-             ret['full_name'] = f"{instance.first_name or ''} {instance.last_name or ''}".strip()
+        
+        # Full Name Fallback Logic:
+        # 1. full_name (DB)
+        # 2. First + Last Name
+        # 3. Email (if not dummy)
+        # 4. Phone Number
+        
+        full_name = ret.get('full_name')
+        
+        if not full_name and (instance.first_name or instance.last_name):
+             full_name = f"{instance.first_name or ''} {instance.last_name or ''}".strip()
+             
+        if not full_name:
+            email = instance.email
+            if email and '@noemail.vipvale.com' not in email:
+                full_name = email
+            else:
+                full_name = instance.phone_number
+                
+        ret['full_name'] = full_name
         return ret
 
 class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField(required=True)
+    email = serializers.CharField(required=True) # Email veya Telefon kabul eder
     password = serializers.CharField(required=True, write_only=True)
 
     def validate(self, attrs):
-        email = attrs.get('email')
+        email_or_phone = attrs.get('email')
         password = attrs.get('password')
         
-        if email and password:
-            user = authenticate(email=email, password=password)
+        if email_or_phone and password:
+            # 1. Email olarak dene
+            if '@' in email_or_phone:
+                user = authenticate(email=email_or_phone, password=password)
+            else:
+                # 2. Telefon numarası olarak dene
+                # Frontend'den gelen format temiz olmayabilir, ancak DB'de nasıl tutulduğu önemli.
+                # Genelde +90 veya 90 ile başlar.
+                # Biz esnek arama yapalım.
+                
+                clean_input = email_or_phone.replace(" ", "").replace("+", "")
+                user_obj = None
+                
+                # Olası formatlar: 5xxxxxxxxx, 905xxxxxxxxx
+                # DB'de "905..." formatında tutuluyorsa:
+                
+                if len(clean_input) == 10: # 532... -> 90532...
+                     user_obj = User.objects.filter(phone_number__endswith=clean_input).first()
+                elif len(clean_input) > 10: # 90532... -> Direkt eşleşme
+                     user_obj = User.objects.filter(phone_number__icontains=clean_input).first()
+                else:
+                     user_obj = User.objects.filter(phone_number=email_or_phone).first()
+                
+                if user_obj:
+                    # authenticate fonksiyonu username/password veya email/password bekler.
+                    # Custom backend yoksa, authenticate(email=...) çalışmayabilir eğer backend email bekliyorsa.
+                    # Ancak bizim user modelde USERNAME_FIELD = 'email'.
+                    # authenticate() çağrısı arka planda user'ı bulup şifre kontrolü yapar.
+                    # Burada user_obj bulduk, şifresini kontrol edelim:
+                    if user_obj.check_password(password):
+                        user = user_obj
+                    else:
+                        user = None
+                else:
+                    user = None
+
             if not user:
-                raise serializers.ValidationError("Email veya parola hatalı")
+                raise serializers.ValidationError("Giriş bilgileri hatalı")
         else:
-             raise serializers.ValidationError("Email ve parola gereklidir")
+             raise serializers.ValidationError("Giriş bilgisi ve parola gereklidir")
              
         attrs['user'] = user
         return attrs
