@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border: 1px solid #e0e0e0;
+        }
+        .header {
+            background-color: #1e293b;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            color: #ffffff;
+            font-size: 24px;
+            font-weight: 300;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+        .content {
+            padding: 40px 30px;
+            color: #333333;
+            line-height: 1.6;
+        }
+        .notification-title {
+            font-size: 22px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            color: #1e293b;
+        }
+        .message-text {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 16px;
+            color: #555;
+        }
+        .info-section {
+            background-color: #f9f9f9;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #1e293b;
+        }
+        .info-title {
+            font-weight: bold;
+            color: #000;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            font-size: 14px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+        }
+        .info-row {
+            margin-bottom: 8px;
+            display: flex;
+        }
+        .label {
+            font-weight: 600;
+            color: #555;
+            width: 140px;
+            flex-shrink: 0;
+        }
+        .value {
+            color: #000;
+            flex-grow: 1;
+        }
+        .footer {
+            background-color: #f9f9f9;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #888888;
+            border-top: 1px solid #eeeeee;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            background-color: #1e293b;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>YÖNETİCİ PANELİ</h1>
+        </div>
+        <div class="content">
+            <div style="text-align: center;">
+                <span class="badge">YENİ SİPARİŞ</span>
+            </div>
+            <div class="notification-title">YENİ TALEP OLUŞTURULDU</div>
+            
+            <p class="message-text">
+                Sisteme yeni bir sipariş girişi yapıldı. Detaylar aşağıdadır:
+            </p>
+
+            <div class="info-section">
+                <div class="info-title">SİPARİŞ BİLGİLERİ</div>
+                <div class="info-row">
+                    <span class="label">Sipariş ID:</span>
+                    <span class="value">#{{ order_id }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Müşteri:</span>
+                    <span class="value">{{ customer_name }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Tarih/Saat:</span>
+                    <span class="value">{{ pickup_time }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Tutar:</span>
+                    <span class="value">{{ price }} ₺</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Ödeme Yöntemi:</span>
+                    <span class="value">{{ payment_method }}</span>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <div class="info-title">GÜZERGAH</div>
+                <div class="info-row">
+                    <span class="label">Alış Adresi:</span>
+                    <span class="value">{{ pickup_address }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Varış Adresi:</span>
+                    <span class="value">{{ dropoff_address }}</span>
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 30px;">
+                <p style="font-size: 14px; color: #666;">
+                    Lütfen yönetici panelinden siparişi kontrol edin ve gerekirse sürücü ataması yapın.
+                </p>
+            </div>
+            
+        </div>
+        <div class="footer">
+            <p>&copy; 2026 Premium Vale Hizmetleri. Yönetici Bilgilendirme Servisi.</p>
+        </div>
+    </div>
+</body>
+</html>

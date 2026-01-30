@@ -70,6 +70,64 @@ def order_post_save(sender, instance, created, **kwargs):
             except Exception as e:
                 print(f"Push Notification Error (New Job): {e}")
 
+        # --- YÖNETİCİ BİLDİRİMLERİ (Push + Email) ---
+        try:
+            managers = User.objects.filter(role='Yönetici')
+            if managers.exists():
+                manager_notification_title = "Yeni Sipariş Oluşturuldu"
+                manager_notification_message = f"#{instance.id} numaralı yeni bir sipariş oluşturuldu. {instance.user.full_name or instance.user.email}"
+                
+                # Toplu Email için hazırlık
+                manager_emails = list(managers.values_list('email', flat=True))
+                
+                # Email İçeriği
+                manager_context = {
+                    'order_id': str(instance.id),
+                    'customer_name': instance.user.full_name or instance.user.email,
+                    'pickup_time': instance.pickup_time.strftime('%d.%m.%Y %H:%M'),
+                    'price': instance.price,
+                    'payment_method': instance.payment_method or 'Belirtilmemiş',
+                    'pickup_address': instance.pickup_address,
+                    'dropoff_address': instance.dropoff_address,
+                }
+                manager_html_content = render_to_string('emails/manager_order_notification.html', manager_context)
+                manager_text_content = strip_tags(manager_html_content)
+
+                for manager in managers:
+                    # 1. Veritabanı bildirimi
+                    Notification.objects.create(
+                        user=manager,
+                        title=manager_notification_title,
+                        message=manager_notification_message
+                    )
+                    
+                    # 2. Push bildirimi
+                    manager_tokens = list(ExpoPushToken.objects.filter(user=manager).values_list('token', flat=True))
+                    if manager_tokens:
+                        send_expo_push_notification(
+                            tokens=manager_tokens,
+                            title=manager_notification_title,
+                            message=manager_notification_message,
+                            data={'orderId': instance.id, 'type': 'new_order_admin'}
+                        )
+                
+                # 3. Toplu Email gönderimi (Döngü dışında tek seferde veya tek tek, topluca daha iyi)
+                try:
+                    manager_msg = EmailMultiAlternatives(
+                        subject=f"YENİ SİPARİŞ: #{instance.id}",
+                        body=manager_text_content,
+                        from_email=settings.DEFAULT_FROM_EMAIL,
+                        to=manager_emails
+                    )
+                    manager_msg.attach_alternative(manager_html_content, "text/html")
+                    manager_msg.send()
+                    print(f"Yöneticilere sipariş bildirimi mailleri gönderildi: {', '.join(manager_emails)}")
+                except Exception as email_err:
+                    print(f"Yöneticilere mail gönderilemedi: {email_err}")
+
+        except Exception as e:
+            print(f"Manager Notification Error: {e}")
+
     # Sürücü Değişikliği / Ataması Kontrolü (Update durumunda)
     if not created and hasattr(instance, '_old_driver_id') and instance.driver_id != instance._old_driver_id:
         if instance.driver:

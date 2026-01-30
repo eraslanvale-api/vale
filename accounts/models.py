@@ -50,7 +50,7 @@ class User(AbstractUser):
     verification_code = models.CharField(max_length=4, null=True, blank=True)
     verification_code_sent_at = models.DateTimeField(null=True, blank=True)
 
-    role = models.CharField(max_length=20, choices=[('Kullanıcı', 'Kullanıcı'), ('Şoför', 'Şoför')], default='Kullanıcı')
+    role = models.CharField(max_length=20, choices=[('Kullanıcı', 'Kullanıcı'), ('Şoför', 'Şoför'),('Yönetici','Yönetici')], default='Kullanıcı')
     
     # Driver specific fields
     vehicle_plate = models.CharField(max_length=20, blank=True, null=True)
