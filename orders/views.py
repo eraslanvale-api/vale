@@ -4,13 +4,24 @@ from rest_framework.views import APIView
 from django.db import transaction
 from .models import Order, VehicleHandoverPhoto
 from .serializers import OrderSerializer, EmergencyAlertSerializer, VehicleHandoverPhotoSerializer
+from notifications.models import Notification
+from accounts.models import User
 
 class EmergencyAlertCreateView(generics.CreateAPIView):
     serializer_class = EmergencyAlertSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        alert = serializer.save(user=self.request.user)
+        # Notify admins
+        admins = User.objects.filter(role='Yönetici', is_active=True)
+        message = f"{alert.user.full_name or alert.user.email} tarafından acil durum bildirimi gönderildi!"
+        for admin in admins:
+            Notification.objects.create(
+                user=admin,
+                title="🚨 ACİL DURUM BİLDİRİMİ",
+                message=message
+            )
 
 class OrderListView(generics.ListCreateAPIView):
     serializer_class = OrderSerializer
@@ -68,6 +79,17 @@ class OrderCancelView(APIView):
             # Diğer tüm durumlarda (scheduled, searching, assigned, accepted, on_way) iptal edilebilir
             order.status = 'cancelled'
             order.save()
+
+            # Notify admins
+            admins = User.objects.filter(role='Yönetici', is_active=True)
+            message = f"#{order.id} nolu rezervasyon müşteri tarafından iptal edildi."
+            for admin in admins:
+                Notification.objects.create(
+                    user=admin,
+                    title="❌ Rezervasyon İptal Edildi",
+                    message=message
+                )
+
             return Response(OrderSerializer(order).data)
             
         except Order.DoesNotExist:

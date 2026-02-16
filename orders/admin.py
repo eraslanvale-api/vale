@@ -1,6 +1,6 @@
 from django.contrib import admin
 from import_export.admin import ImportExportModelAdmin
-from .models import Order, OrderStop,EmergencyAlert,VehicleHandoverPhoto
+from .models import Order, OrderStop, EmergencyAlert, VehicleHandoverPhoto
 
 class OrderStopInline(admin.TabularInline):
     model = OrderStop

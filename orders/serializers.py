@@ -62,6 +62,7 @@ class OrderSerializer(serializers.ModelSerializer):
     statusLabel = serializers.CharField(source='get_status_display', read_only=True)
     time = serializers.SerializerMethodField()
     has_active_emergency = serializers.SerializerMethodField()
+    show_price = serializers.SerializerMethodField()
     
     # Use UserSerializer for driver details
     driver = UserSerializer(read_only=True)
@@ -116,16 +117,35 @@ class OrderSerializer(serializers.ModelSerializer):
     def get_has_active_emergency(self, obj):
         return obj.emergency_alerts.filter(is_resolved=False).exists()
 
+    def get_show_price(self, obj):
+        return obj.service.show_price if obj.service else True
+
     def get_vehicle_details(self, obj):
         if obj.vehicle:
-            return f"{obj.vehicle.plate} - {obj.vehicle.brand} {obj.vehicle.model}"
-        return obj.license_plate or "Araç bilgisi yok"
+            return {
+                "plate": obj.vehicle.plate,
+                "brand": obj.vehicle.brand,
+                "model": obj.vehicle.model,
+                "color": getattr(obj.vehicle, 'color', '')
+            }
+        return {
+            "plate": obj.license_plate or "Plaka Yok",
+            "brand": "",
+            "model": "Araç bilgisi yok",
+            "color": ""
+        }
 
     def create(self, validated_data):
+        # Handle writable nested 'stops'
         stops_data = validated_data.pop('stops', [])
-        order = Order.objects.create(**validated_data)
-        for stop_data in stops_data:
-            OrderStop.objects.create(order=order, **stop_data)
+        
+        # Create the Order instance
+        order = super().create(validated_data)
+        
+        # Create the OrderStop instances
+        for i, stop_data in enumerate(stops_data):
+            OrderStop.objects.create(order=order, order_index=i, **stop_data)
+            
         return order
 
     class Meta:
@@ -139,6 +159,6 @@ class OrderSerializer(serializers.ModelSerializer):
             'emergencyContactName', 'emergencyContactPhone',
             'customerName', 'driver', 'created_at', 'invoiceId',
             'license_plate', 'vehicle_details', 'has_active_emergency',
-            'handover_photos'
+            'handover_photos', 'show_price'
         ]
         read_only_fields = ['driver']

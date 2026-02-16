@@ -5,7 +5,9 @@ from .models import Service, Vehicle
 # Register your models here.
 @admin.register(Service)
 class ServiceAdmin(ImportExportModelAdmin):
-    pass
+    list_display = ('name', 'is_active', 'show_price')
+    search_fields = ('name',)
+    list_filter = ('is_active', 'show_price')
 
 @admin.register(Vehicle)
 class VehicleAdmin(ImportExportModelAdmin):

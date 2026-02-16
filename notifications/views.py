@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from .models import Notification
 from .serializers import NotificationSerializer
+from accounts.models import ExpoPushToken
 
 class NotificationListView(generics.ListAPIView):
     serializer_class = NotificationSerializer

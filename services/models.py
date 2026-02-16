@@ -14,7 +14,8 @@ class Service(models.Model):
     base_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     per_km = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     free_distance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-
+    show_price = models.BooleanField(default=True)
+    
     def __str__(self):
         return self.name
 

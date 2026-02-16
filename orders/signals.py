@@ -108,7 +108,9 @@ def order_post_save(sender, instance, created, **kwargs):
                             tokens=manager_tokens,
                             title=manager_notification_title,
                             message=manager_notification_message,
-                            data={'orderId': instance.id, 'type': 'new_order_admin'}
+                            data={'orderId': instance.id, 'type': 'new_order_admin'},
+                            sound='notification.wav',
+                            channel_id='premium_alert'
                         )
                 
                 # 3. Toplu Email gönderimi (Döngü dışında tek seferde veya tek tek, topluca daha iyi)

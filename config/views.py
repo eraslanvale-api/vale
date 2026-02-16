@@ -4,6 +4,8 @@ from rest_framework.views import APIView
 from .models import ConfigModel
 from .serializers import ConfigSerializer
 
+from accounts.permissions import IsManager
+
 class ConfigView(APIView):
     """
     Sistemin genel konfigürasyonunu getirir.
@@ -21,11 +23,11 @@ class ConfigView(APIView):
 
 class ConfigUpdateView(generics.UpdateAPIView):
     """
-    Konfigürasyonu güncellemek için (Sadece Admin).
+    Konfigürasyonu güncellemek için (Sadece Admin ve Yöneticiler).
     """
     queryset = ConfigModel.objects.all()
     serializer_class = ConfigSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsManager]
 
     def get_object(self):
         config = ConfigModel.objects.first()
